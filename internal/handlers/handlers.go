@@ -37,14 +37,19 @@ func (h *Handlers) getSongs(w http.ResponseWriter, r *http.Request) {
 			Name: "lipsi ha",
 			Band: "Instasamka",
 			Album: "Money day",
-			Path: "localhost:8080/ex.m3u8",
+			Path: "http://localhost:8080/outputlist.m3u8",
 		},
 		{
 			Name: "шото там на девятке",
 			Band: "подруга гспд",
 			Album: "какой-то дебютный",
-			Path: "localhost:8080/ex1.m3u8",
+			Path: "http://localhost:8080/ex1.m3u8",
 		},
 	}
-	json.NewEncoder(w).Encode(resp)
+	data, err := json.Marshal(resp)
+	if err != nil {
+		h.logger.Error("error marshaling response", zap.Error(err), zap.Any("data", resp))
+		return
+	}
+	w.Write(data)
 }
