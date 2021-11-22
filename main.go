@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/supperdoggy/webproject/backend/internal/handlers"
+	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/handlers"
+
 	"go.uber.org/zap"
 	"log"
 	"net/http"
