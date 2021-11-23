@@ -13,11 +13,7 @@ func main() {
 	// configure the songs directory name and port
 	const port = 8080
 	// test
-	//err := utils.ConvMp3ToM3U8("example/ex.mp3", "ex")
-	//if err != nil {
-	//	panic(err.Error())
-	//}
-	//time.Sleep(24*time.Hour)
+
 	h := handlers.NewHandlers(logger)
 	h.InitHandlers()
 

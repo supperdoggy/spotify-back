@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/utils"
 	globalStructs "github.com/supperdoggy/spotify-web-project/spotify-globalStructs"
 	"go.uber.org/zap"
 	"net/http"
@@ -16,8 +17,23 @@ func NewHandlers(l *zap.Logger) *Handlers {
 }
 
 func (h *Handlers) InitHandlers() {
+	count := -1
 	const songsDir = "example/songs"
-	http.Handle("/", addHeaders(http.FileServer(http.Dir(songsDir))))
+	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		m3u8Data, tsData, err := utils.ConvMp3ToM3U8(h.logger, "example/mp3/ex.mp3", "ex")
+		if err != nil {
+			panic(err.Error())
+		}
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		if count == -1 {
+			writer.Write(m3u8Data.Data)
+			count++
+			return
+		}
+		//TODO create endpoint which converts all mp3 int m3u8 and saves it into db then find why do we have a problem when id does not call for ex_002 ex_004 and ex_005
+		writer.Write(tsData[count].Data)
+	})
+	//http.Handle("/", addHeaders(http.FileServer(http.Dir(songsDir))))
 	http.HandleFunc("/allsongs", h.getSongs)
 }
 
