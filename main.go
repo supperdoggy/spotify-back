@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/handlers"
-
 	"go.uber.org/zap"
 	"log"
 	"net/http"
@@ -13,7 +12,12 @@ func main() {
 	logger, _ := zap.NewDevelopment()
 	// configure the songs directory name and port
 	const port = 8080
-
+	// test
+	//err := utils.ConvMp3ToM3U8("example/ex.mp3", "ex")
+	//if err != nil {
+	//	panic(err.Error())
+	//}
+	//time.Sleep(24*time.Hour)
 	h := handlers.NewHandlers(logger)
 	h.InitHandlers()
 
