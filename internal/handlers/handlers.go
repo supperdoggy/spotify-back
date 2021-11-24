@@ -2,18 +2,22 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/service"
+	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/structs"
 	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/utils"
 	globalStructs "github.com/supperdoggy/spotify-web-project/spotify-globalStructs"
 	"go.uber.org/zap"
+	"io/ioutil"
 	"net/http"
 )
 
 type Handlers struct {
 	logger *zap.Logger
+	s service.IService
 }
 
-func NewHandlers(l *zap.Logger) *Handlers {
-	return &Handlers{logger: l}
+func NewHandlers(l *zap.Logger, s service.IService) *Handlers {
+	return &Handlers{logger: l, s: s}
 }
 
 func (h *Handlers) InitHandlers() {
@@ -33,7 +37,7 @@ func (h *Handlers) InitHandlers() {
 		//TODO create endpoint which converts all mp3 int m3u8 and saves it into db then find why do we have a problem when id does not call for ex_002 ex_004 and ex_005
 		writer.Write(tsData[count].Data)
 	})
-	//http.Handle("/", addHeaders(http.FileServer(http.Dir(songsDir))))
+	http.HandleFunc("/api/v1/newsong", h.createNewSong)
 	http.HandleFunc("/allsongs", h.getSongs)
 }
 
@@ -68,4 +72,25 @@ func (h *Handlers) getSongs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(data)
+}
+
+func (h *Handlers) createNewSong(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	var req structs.CreateNewSongReq
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		h.logger.Error("error reading body", zap.Error(err))
+		w.Write([]byte("{'error':'error parsing body'}"))
+		return
+	}
+
+	err = json.Unmarshal(data, &req)
+	if err != nil {
+		h.logger.Error("error reading body", zap.Error(err))
+		w.Write([]byte("{'error':'error unmarshalling req'}"))
+		return
+	}
+
+	err = h.s.CreateNewSong(req)
+
 }
