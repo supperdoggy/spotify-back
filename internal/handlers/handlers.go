@@ -3,8 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/service"
-	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/structs"
 	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/utils"
+	"github.com/supperdoggy/spotify-web-project/spotify-back/shared/structs"
 	globalStructs "github.com/supperdoggy/spotify-web-project/spotify-globalStructs"
 	"go.uber.org/zap"
 	"io/ioutil"

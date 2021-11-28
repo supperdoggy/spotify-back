@@ -2,8 +2,7 @@ package service
 
 import (
 	"errors"
-	"github.com/floyernick/fleep-go"
-	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/structs"
+	"github.com/supperdoggy/spotify-web-project/spotify-back/shared/structs"
 	"go.uber.org/zap"
 )
 
@@ -24,12 +23,12 @@ func (s *Service) CreateNewSong(req structs.CreateNewSongReq) error {
 		return errors.New("no song data provided")
 	}
 
-	info, err := fleep.GetInfo(req.SongData)
-	if err != nil {
-		return err
-	}
+	//info, err := fleep.GetInfo(req.SongData)
+	//if err != nil {
+	//	return err
+	//}
 
-	s.logger.Info("info", zap.Any("info", info))
+	s.logger.Info("info", zap.Any("info", req))
 
 	return nil
 }
