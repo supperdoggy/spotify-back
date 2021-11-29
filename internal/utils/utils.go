@@ -1,16 +1,28 @@
 package utils
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	globalStructs "github.com/supperdoggy/spotify-web-project/spotify-globalStructs"
 	"go.uber.org/zap"
+	"io"
 	"os"
 	"os/exec"
 )
 
+func CreateMP3File(name string, data []byte) error {
+	outputfile, err := os.Create("example/mp3/" + name + ".mp3")
+	if err != nil {
+		return err
+	}
+	buf := bytes.NewBuffer(data)
+	_, err = io.Copy(outputfile, buf)
+	return err
+}
+
 func ConvMp3ToM3U8(logger *zap.Logger, filename, m3p8 string) (m3u8Data *globalStructs.SongData, tsData []globalStructs.SongData, err error) {
-	args := []string{"example/create.sh", filename, "example/songs/"+m3p8+".m3u8", "example/songs/"+m3p8+"_%03d.ts"}
+	args := []string{"example/create.sh", "example/mp3/" + filename, "example/songs/" + m3p8 + ".m3u8", "example/songs/" + m3p8 + "_%03d.ts"}
 	cmd := exec.Command("/bin/sh", args...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
@@ -24,7 +36,7 @@ func ConvMp3ToM3U8(logger *zap.Logger, filename, m3p8 string) (m3u8Data *globalS
 		return nil, nil, err
 	}
 	m3u8Data = &globalStructs.SongData{
-		ID: m3p8+".m3u8",
+		ID:   m3p8 + ".m3u8",
 		Data: data,
 	}
 
@@ -32,16 +44,28 @@ func ConvMp3ToM3U8(logger *zap.Logger, filename, m3p8 string) (m3u8Data *globalS
 	tsData = []globalStructs.SongData{}
 	i := 0
 	for {
-		data, err := os.ReadFile(fmt.Sprintf("example/songs/%s_%03d.ts", m3p8, i))
+		path := fmt.Sprintf("example/songs/%s_%03d.ts", m3p8, i)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			break
 		}
 		songData := globalStructs.SongData{
-			ID: fmt.Sprintf("%s_%03d.ts", m3p8, i),
+			ID:   fmt.Sprintf("%s_%03d.ts", m3p8, i),
 			Data: data,
 		}
+
 		tsData = append(tsData, songData)
 		i++
+
+		err = os.Remove(path)
+		if err != nil {
+			break
+		}
+	}
+
+	err = os.Remove(fmt.Sprintf("example/songs/%s.m3u8", m3p8))
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if len(tsData) == 0 {
