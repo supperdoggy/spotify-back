@@ -63,7 +63,7 @@ func (s *Service) CreateNewSong(req structs.CreateNewSongReq) error {
 	s.logger.Info("result", zap.Any("m3h8", m3h8), zap.Any("len ts", len(ts)))
 
 	song := globalStructs.Song{
-		ID: fileName,
+		ID:          fileName,
 		Name:        req.Name,
 		Album:       req.Album,
 		Band:        req.Band,
