@@ -1,8 +1,6 @@
 package service
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/floyernick/fleep-go"
@@ -13,8 +11,6 @@ import (
 	globalStructs "github.com/supperdoggy/spotify-web-project/spotify-globalStructs"
 	"go.uber.org/zap"
 	"gopkg.in/night-codes/types.v1"
-	"io/ioutil"
-	"net/http"
 	"time"
 )
 
@@ -59,9 +55,6 @@ func (s *Service) CreateNewSong(req structs.CreateNewSongReq) error {
 		return err
 	}
 
-	// todo save to db
-	s.logger.Info("result", zap.Any("m3h8", m3h8), zap.Any("len ts", len(ts)))
-
 	song := globalStructs.Song{
 		ID:          fileName,
 		Name:        req.Name,
@@ -78,32 +71,11 @@ func (s *Service) CreateNewSong(req structs.CreateNewSongReq) error {
 		SongData: song,
 	}
 
-	marshalled, err := json.Marshal(reqToDB)
+	err = utils.SendRequest(reqToDB, "post", "http://localhost:8082/api/v1/addSegment", &respFromDB)
 	if err != nil {
-		s.logger.Error("error marshaling req to db", zap.Error(err))
+		s.logger.Error("error sending request", zap.Error(err))
 		return err
 	}
-
-	buf := bytes.NewBuffer(marshalled)
-
-	resp, err := http.Post("http://localhost:8082/api/v1/addSegment", "application/json", buf)
-	if err != nil {
-		s.logger.Error("error making req to db", zap.Error(err))
-		return err
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		s.logger.Error("error reading body", zap.Error(err))
-		return err
-	}
-
-	err = json.Unmarshal(data, &respFromDB)
-	if err != nil {
-		s.logger.Error("error unmarshaling answer", zap.Error(err))
-		return err
-	}
-	defer resp.Body.Close()
 
 	if !respFromDB.OK {
 		s.logger.Error("got error from db", zap.Any("error", respFromDB.Error))
@@ -114,27 +86,12 @@ func (s *Service) CreateNewSong(req structs.CreateNewSongReq) error {
 }
 
 func (s *Service) GetAllSongs() (resp structsDB.GetAllSongsResp, err error) {
-	rawResp, err := http.Get("http://localhost:8082/api/v1/allsongs")
+	err = utils.SendRequest(nil, "get", "http://localhost:8082/api/v1/allsongs", &resp)
 	if err != nil {
-		s.logger.Error("error making request to db", zap.Error(err))
+		s.logger.Error("error sending request", zap.Error(err))
 		resp.Error = err.Error()
-		return resp, err
+		return
 	}
-	defer rawResp.Body.Close()
-
-	data, err := ioutil.ReadAll(rawResp.Body)
-	if err != nil {
-		s.logger.Error("error reading body", zap.Error(err))
-		resp.Error = err.Error()
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		s.logger.Error("error unmarshaling req", zap.Error(err))
-		resp.Error = err.Error()
-		return resp, err
-	}
-
 	if resp.Error != "" {
 		s.logger.Error("got error from db", zap.Any("error", resp.Error))
 		return resp, errors.New(resp.Error)
@@ -148,28 +105,10 @@ func (s *Service) GetSegment(id string) ([]byte, error) {
 		ID: id,
 	}
 
-	marshalled, err := json.Marshal(req)
-	if err != nil {
-		s.logger.Error("cant marshall req", zap.Error(err))
-		return nil, err
-	}
-
-	rawResult, err := http.Post("http://localhost:8082/api/v1/getsegment", "application/json", bytes.NewBuffer(marshalled))
-	if err != nil {
-		s.logger.Error("error making response to db", zap.Error(err), zap.Any("req", req))
-		return nil, err
-	}
-	defer rawResult.Body.Close()
-
-	data, err := ioutil.ReadAll(rawResult.Body)
-	if err != nil {
-		s.logger.Error("error reading result body", zap.Error(err), zap.Any("req", req))
-		return nil, err
-	}
-
 	var resp structsDB.GetSegmentResp
-	if err := json.Unmarshal(data, &resp); err != nil {
-		s.logger.Error("error unmarshalling resp from db", zap.Error(err))
+	err := utils.SendRequest(req, "post", "http://localhost:8082/api/v1/getsegment", &resp)
+	if err != nil {
+		s.logger.Error("error sending req to db", zap.Error(err))
 		return nil, err
 	}
 

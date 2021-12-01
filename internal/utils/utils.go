@@ -2,11 +2,14 @@ package utils
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	globalStructs "github.com/supperdoggy/spotify-web-project/spotify-globalStructs"
 	"go.uber.org/zap"
 	"io"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 )
@@ -73,4 +76,38 @@ func ConvMp3ToM3U8(logger *zap.Logger, filename, m3p8 string) (m3u8Data *globalS
 	}
 
 	return
+}
+
+func SendRequest(req interface{}, method, url string, resp interface{}) error {
+	var respFromServer *http.Response
+	var data []byte
+	var err error
+
+	if req == nil {
+		data, err = json.Marshal(req)
+		if err != nil {
+			return err
+		}
+	}
+	switch method {
+	case "post":
+		respFromServer, err = http.Post(url, "application/json", bytes.NewBuffer(data))
+	case "get":
+		respFromServer, err = http.Get(url)
+	}
+	if err != nil {
+		return err
+	}
+	defer respFromServer.Body.Close()
+
+	data, err = ioutil.ReadAll(respFromServer.Body)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+	return nil
 }
