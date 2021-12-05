@@ -1,16 +1,22 @@
 package service
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/floyernick/fleep-go"
+	structs2 "github.com/supperdoggy/spotify-web-project/spotify-auth/shared/structs"
 	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/utils"
 	"github.com/supperdoggy/spotify-web-project/spotify-back/shared/structs"
 	dbStructs "github.com/supperdoggy/spotify-web-project/spotify-db/shared/structs"
 	structsDB "github.com/supperdoggy/spotify-web-project/spotify-db/shared/structs"
 	globalStructs "github.com/supperdoggy/spotify-web-project/spotify-globalStructs"
+	"github.com/u2takey/go-utils/rand"
 	"go.uber.org/zap"
 	"gopkg.in/night-codes/types.v1"
+	"io/ioutil"
+	"net/http"
 	"time"
 )
 
@@ -18,6 +24,8 @@ type IService interface {
 	CreateNewSong(req structs.CreateNewSongReq) error
 	GetAllSongs() (resp structsDB.GetAllSongsResp, err error)
 	GetSegment(id string) ([]byte, error)
+	Register(req structs2.RegisterReq) (resp structs2.NewTokenResp, err error)
+	Login(req structs2.LoginReq) (resp structs2.LoginResp, err error)
 }
 
 type Service struct {
@@ -71,11 +79,32 @@ func (s *Service) CreateNewSong(req structs.CreateNewSongReq) error {
 		SongData: song,
 	}
 
-	err = utils.SendRequest(reqToDB, "post", "http://localhost:8082/api/v1/addSegment", &respFromDB)
+	marshalled, err := json.Marshal(reqToDB)
 	if err != nil {
-		s.logger.Error("error sending request", zap.Error(err))
+		s.logger.Error("error marshaling req to db", zap.Error(err))
 		return err
 	}
+
+	buf := bytes.NewBuffer(marshalled)
+
+	resp, err := http.Post("http://localhost:8082/api/v1/addSegment", "application/json", buf)
+	if err != nil {
+		s.logger.Error("error making req to db", zap.Error(err))
+		return err
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		s.logger.Error("error reading body", zap.Error(err))
+		return err
+	}
+
+	err = json.Unmarshal(data, &respFromDB)
+	if err != nil {
+		s.logger.Error("error unmarshaling answer", zap.Error(err))
+		return err
+	}
+	defer resp.Body.Close()
 
 	if !respFromDB.OK {
 		s.logger.Error("got error from db", zap.Any("error", respFromDB.Error))
@@ -105,10 +134,28 @@ func (s *Service) GetSegment(id string) ([]byte, error) {
 		ID: id,
 	}
 
-	var resp structsDB.GetSegmentResp
-	err := utils.SendRequest(req, "post", "http://localhost:8082/api/v1/getsegment", &resp)
+	marshalled, err := json.Marshal(req)
 	if err != nil {
-		s.logger.Error("error sending req to db", zap.Error(err))
+		s.logger.Error("cant marshall req", zap.Error(err))
+		return nil, err
+	}
+
+	rawResult, err := http.Post("http://localhost:8082/api/v1/getsegment", "application/json", bytes.NewBuffer(marshalled))
+	if err != nil {
+		s.logger.Error("error making response to db", zap.Error(err), zap.Any("req", req))
+		return nil, err
+	}
+	defer rawResult.Body.Close()
+
+	data, err := ioutil.ReadAll(rawResult.Body)
+	if err != nil {
+		s.logger.Error("error reading result body", zap.Error(err), zap.Any("req", req))
+		return nil, err
+	}
+
+	var resp structsDB.GetSegmentResp
+	if err := json.Unmarshal(data, &resp); err != nil {
+		s.logger.Error("error unmarshalling resp from db", zap.Error(err))
 		return nil, err
 	}
 
@@ -118,4 +165,108 @@ func (s *Service) GetSegment(id string) ([]byte, error) {
 	}
 
 	return resp.Segment.Data, nil
+}
+
+
+func (s *Service) Register(req structs2.RegisterReq) (resp structs2.NewTokenResp, err error) {
+	if req.Password == "" || req.Email == "" {
+		resp.Error = "fill all the fields"
+		return resp, errors.New("fill all the fields")
+	}
+
+	var respFromAuth structs2.RegisterResp
+	err = utils.SendRequest(req, "post", "http://localhost:8083/api/v1/register", &respFromAuth)
+	if err != nil {
+		s.logger.Error("error sending request to auth", zap.Error(err))
+		resp.Error = err.Error()
+		return resp, errors.New("error making request")
+	}
+
+	if respFromAuth.Error != "" {
+		s.logger.Error("got error from auth", zap.Any("error", respFromAuth.Error))
+		resp.Error = respFromAuth.Error
+		return resp, errors.New(respFromAuth.Error)
+	}
+
+	user := globalStructs.User{
+		ID:         respFromAuth.UserID,
+		Username:   rand.String(12),
+		Email:      req.Email,
+		FirstName:  req.FirstName,
+		LastName:   req.LastName,
+		Statuses:   globalStructs.Statuses{},
+		LastOnline: time.Now(),
+	}
+	var respFromDB structsDB.NewUserResp
+
+	marshalled, err := json.Marshal(user)
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	respDB, err := http.Post("http://localhost:8082/api/v1/new_user", "application/json", bytes.NewBuffer(marshalled))
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	data, err := ioutil.ReadAll(respDB.Body)
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &respFromDB)
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	if !respFromDB.OK {
+		s.logger.Error("got error from db", zap.Any("error", respFromDB.Error), zap.Any("user", user))
+		resp.Error = respFromDB.Error
+		return resp, err
+	}
+
+	resp.Token = respFromAuth.Token
+	return resp, nil
+}
+
+func (s *Service) Login(req structs2.LoginReq) (resp structs2.LoginResp, err error) {
+	if req.Email == "" || req.Password == "" {
+		resp.Error = "fill all the fields"
+		return resp, errors.New(resp.Error)
+	}
+
+	marshalled, err := json.Marshal(req)
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	respdata, err := http.Post("http://localhost:8083/api/v1/login", "application/json", bytes.NewBuffer(marshalled))
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	data, err := ioutil.ReadAll(respdata.Body)
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	if resp.Error == "" {
+		s.logger.Error("got error from auth", zap.Any("error", resp.Error))
+		return resp, errors.New(resp.Error)
+	}
+
+	return resp, nil
 }

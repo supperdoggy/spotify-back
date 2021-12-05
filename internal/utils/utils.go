@@ -104,10 +104,29 @@ func SendRequest(req interface{}, method, url string, resp interface{}) error {
 	if err != nil {
 		return err
 	}
-
 	err = json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func SendJson(w http.ResponseWriter, obj interface{}, code int) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	 data, err := json.Marshal(obj)
+	 if err != nil {
+	 	return err
+	 }
+	 _, err = w.Write(data)
+	 return err
+}
+
+func ParseJson(r *http.Request, obj interface{}) error {
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(data, obj)
 }

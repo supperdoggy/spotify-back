@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	structs2 "github.com/supperdoggy/spotify-web-project/spotify-auth/shared/structs"
 	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/service"
+	"github.com/supperdoggy/spotify-web-project/spotify-back/internal/utils"
 	"github.com/supperdoggy/spotify-web-project/spotify-back/shared/structs"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -22,6 +24,8 @@ func (h *Handlers) InitHandlers() {
 	http.HandleFunc("/", h.GetSegment)
 	http.HandleFunc("/api/v1/newsong", h.createNewSong)
 	http.HandleFunc("/allsongs", h.getSongs)
+	http.HandleFunc("/login", h.Login)
+	http.HandleFunc("/register", h.Register)
 }
 
 // addHeaders will act as middleware to give us CORS support
@@ -84,4 +88,44 @@ func (h *Handlers) createNewSong(w http.ResponseWriter, r *http.Request) {
 
 	err = h.s.CreateNewSong(req)
 
+}
+
+func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
+	var req structs2.LoginReq
+	var resp structs2.LoginResp
+	err := utils.ParseJson(r, &req)
+	if err != nil {
+		h.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		utils.SendJson(w, resp, http.StatusBadRequest)
+		return
+	}
+
+	resp, err = h.s.Login(req)
+	if err != nil {
+		h.logger.Error("gor Login() error", zap.Error(err))
+		utils.SendJson(w, resp, http.StatusBadRequest)
+		return
+	}
+	utils.SendJson(w, resp, http.StatusOK)
+}
+
+func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
+	var req structs2.RegisterReq
+	var resp structs2.NewTokenResp
+	err := utils.ParseJson(r, &req)
+	if err != nil {
+		h.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		utils.SendJson(w, resp, http.StatusBadRequest)
+		return
+	}
+
+	resp, err = h.s.Register(req)
+	if err != nil {
+		h.logger.Error("gor Register() error", zap.Error(err))
+		utils.SendJson(w, resp, http.StatusBadRequest)
+		return
+	}
+	utils.SendJson(w, resp, http.StatusOK)
 }
