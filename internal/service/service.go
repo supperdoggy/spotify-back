@@ -175,7 +175,25 @@ func (s *Service) Register(req structs2.RegisterReq) (resp structs2.NewTokenResp
 	}
 
 	var respFromAuth structs2.RegisterResp
-	err = utils.SendRequest(req, "post", "http://localhost:8083/api/v1/register", &respFromAuth)
+	marshalled, err := json.Marshal(req)
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	respdata, err := http.Post("http://localhost:8083/api/v1/register", "application/json", bytes.NewBuffer(marshalled))
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	data, err := ioutil.ReadAll(respdata.Body)
+	if err != nil {
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &respFromAuth)
 	if err != nil {
 		s.logger.Error("error sending request to auth", zap.Error(err))
 		resp.Error = err.Error()
@@ -199,7 +217,7 @@ func (s *Service) Register(req structs2.RegisterReq) (resp structs2.NewTokenResp
 	}
 	var respFromDB structsDB.NewUserResp
 
-	marshalled, err := json.Marshal(user)
+	marshalled, err = json.Marshal(user)
 	if err != nil {
 		resp.Error = err.Error()
 		return
@@ -211,7 +229,7 @@ func (s *Service) Register(req structs2.RegisterReq) (resp structs2.NewTokenResp
 		return
 	}
 
-	data, err := ioutil.ReadAll(respDB.Body)
+	data, err = ioutil.ReadAll(respDB.Body)
 	if err != nil {
 		resp.Error = err.Error()
 		return
@@ -241,29 +259,33 @@ func (s *Service) Login(req structs2.LoginReq) (resp structs2.LoginResp, err err
 
 	marshalled, err := json.Marshal(req)
 	if err != nil {
+		s.logger.Error("error marshalling data", zap.Error(err))
 		resp.Error = err.Error()
 		return
 	}
 
 	respdata, err := http.Post("http://localhost:8083/api/v1/login", "application/json", bytes.NewBuffer(marshalled))
 	if err != nil {
+		s.logger.Error("error making post request to auth", zap.Error(err))
 		resp.Error = err.Error()
 		return
 	}
 
 	data, err := ioutil.ReadAll(respdata.Body)
 	if err != nil {
+		s.logger.Error("error reading body", zap.Error(err))
 		resp.Error = err.Error()
 		return
 	}
 
 	err = json.Unmarshal(data, &resp)
 	if err != nil {
+		s.logger.Error("error unmarshalling data", zap.Error(err))
 		resp.Error = err.Error()
 		return
 	}
 
-	if resp.Error == "" {
+	if resp.Error != "" {
 		s.logger.Error("got error from auth", zap.Any("error", resp.Error))
 		return resp, errors.New(resp.Error)
 	}

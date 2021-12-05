@@ -103,7 +103,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 
 	resp, err = h.s.Login(req)
 	if err != nil {
-		h.logger.Error("gor Login() error", zap.Error(err))
+		h.logger.Error("got Login() error", zap.Error(err))
 		utils.SendJson(w, resp, http.StatusBadRequest)
 		return
 	}
