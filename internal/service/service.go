@@ -74,6 +74,7 @@ func (s *Service) CreateNewSong(req structs.CreateNewSongReq) error {
 
 	var respFromDB dbStructs.AddSegmentsResp
 	reqToDB := dbStructs.AddSegmentsReq{
+		//UserID: userID
 		Ts:       ts,
 		M3H8:     *m3h8,
 		SongData: song,
@@ -130,6 +131,7 @@ func (s *Service) GetAllSongs() (resp structsDB.GetAllSongsResp, err error) {
 }
 
 func (s *Service) GetSegment(id string) ([]byte, error) {
+	// CHECK TOKEN!!!!!
 	req := structsDB.GetSegmentReq{
 		ID: id,
 	}
