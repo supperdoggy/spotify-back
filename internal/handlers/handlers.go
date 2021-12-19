@@ -37,9 +37,8 @@ func addHeaders(h http.Handler) http.HandlerFunc {
 }
 
 func (h *Handlers) GetSegment(writer http.ResponseWriter, request *http.Request) {
-	h.logger.Info("cookies", zap.Any("c", request.Cookies()))
-	writer.Header().Set("Access-Control-Allow-Origin", "*")
-	// todo add check for auth access !!!
+	// maybe add specific access control origin here?
+	writer.Header().Set("Access-Control-Allow-Origin", "http://localhost")
 	id := request.RequestURI[1:]
 	resp, err := h.s.GetSegment(id)
 	if err != nil {
