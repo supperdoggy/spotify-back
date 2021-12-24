@@ -26,6 +26,11 @@ type IService interface {
 	GetSegment(id string) ([]byte, error)
 	Register(req structs2.RegisterReq) (resp structs2.NewTokenResp, err error)
 	Login(req structs2.LoginReq) (resp structs2.LoginResp, err error)
+	RemoveSongFromPlaylist(req structsDB.RemoveSongFromUserPlaylistReq) (resp structsDB.RemoveSongFromUserPlaylistResp, err error)
+	GetUserPlaylists(req structsDB.GetUserAllPlaylistsReq) (resp structsDB.GetUserAllPlaylistsResp, err error)
+	GetPlaylist(req structsDB.GetPlaylistReq) (resp structsDB.GetPlaylistResp, err error)
+	NewPlaylist(req structsDB.NewPlaylistReq) (resp structsDB.NewPlaylistResp, err error)
+	AddSongToPlaylist(req structsDB.AddSongToUserPlaylistReq) (resp structsDB.AddSongToUserPlaylistResp, err error)
 }
 
 type Service struct {
@@ -293,4 +298,215 @@ func (s *Service) Login(req structs2.LoginReq) (resp structs2.LoginResp, err err
 	}
 
 	return resp, nil
+}
+
+func (s *Service) GetUserPlaylists(req structsDB.GetUserAllPlaylistsReq) (resp structsDB.GetUserAllPlaylistsResp, err error) {
+	if req.UserID == "" {
+		resp.Error = "you must fill all ids"
+		return resp, errors.New(resp.Error)
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		s.logger.Error("error marshalling requst",  zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	response, err := http.Post("http://localhost:8082/api/v1/user_playlists", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		s.logger.Error("error making post req to db", zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	data, err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		s.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		s.logger.Error("error unmarshalling resp", zap.Error(err), zap.Any("data", string(data)))
+		resp.Error = err.Error()
+		return
+	}
+
+	if resp.Error != "" {
+		s.logger.Error("got error from db", zap.Any("error", resp.Error))
+		return resp, errors.New(resp.Error)
+	}
+
+	return
+}
+
+func (s *Service) GetPlaylist(req structsDB.GetPlaylistReq) (resp structsDB.GetPlaylistResp, err error) {
+	if req.PlaylistID == "" {
+		resp.Error = "you must fill all ids"
+		return resp, errors.New(resp.Error)
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		s.logger.Error("error marshalling requst",  zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	response, err := http.Post("http://localhost:8082/api/v1/get_playlist ", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		s.logger.Error("error making post req to db", zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	data, err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		s.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		s.logger.Error("error unmarshalling resp", zap.Error(err), zap.Any("data", string(data)))
+		resp.Error = err.Error()
+		return
+	}
+
+	if resp.Error != "" {
+		s.logger.Error("got error from db", zap.Any("error", resp.Error))
+		return resp, errors.New(resp.Error)
+	}
+
+	return
+}
+
+func (s *Service) NewPlaylist(req structsDB.NewPlaylistReq) (resp structsDB.NewPlaylistResp, err error) {
+	if req.PlaylistName == "" || req.UserID == "" {
+		resp.Error = "you must fill all ids"
+		return resp, errors.New(resp.Error)
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		s.logger.Error("error marshalling requst",  zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	response, err := http.Post("http://localhost:8082/api/v1/new_playlist", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		s.logger.Error("error making post req to db", zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	data, err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		s.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		s.logger.Error("error unmarshalling resp", zap.Error(err), zap.Any("data", string(data)))
+		resp.Error = err.Error()
+		return
+	}
+
+	if resp.Error != "" {
+		s.logger.Error("got error from db", zap.Any("error", resp.Error))
+		return resp, errors.New(resp.Error)
+	}
+
+	return
+}
+
+
+func (s *Service) AddSongToPlaylist(req structsDB.AddSongToUserPlaylistReq) (resp structsDB.AddSongToUserPlaylistResp, err error) {
+	if req.PlaylistID == "" || req.UserID == "" || req.SongID == "" {
+		resp.Error = "you must fill all ids"
+		return resp, errors.New(resp.Error)
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		s.logger.Error("error marshalling requst",  zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	response, err := http.Post("http://localhost:8082/api/v1/add_song_playlist", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		s.logger.Error("error making post req to db", zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	data, err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		s.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		s.logger.Error("error unmarshalling resp", zap.Error(err), zap.Any("data", string(data)))
+		resp.Error = err.Error()
+		return
+	}
+
+	if resp.Error != "" {
+		s.logger.Error("got error from db", zap.Any("error", resp.Error))
+		return resp, errors.New(resp.Error)
+	}
+
+	return
+}
+
+func (s *Service) RemoveSongFromPlaylist(req structsDB.RemoveSongFromUserPlaylistReq) (resp structsDB.RemoveSongFromUserPlaylistResp, err error) {
+	if req.PlaylistID == "" || req.UserID == "" || req.SongID == "" {
+		resp.Error = "you must fill all ids"
+		return resp, errors.New(resp.Error)
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		s.logger.Error("error marshalling requst",  zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	response, err := http.Post("http://localhost:8082/api/v1/remove_song_playlist", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		s.logger.Error("error making post req to db", zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	data, err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		s.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		s.logger.Error("error unmarshalling resp", zap.Error(err), zap.Any("data", string(data)))
+		resp.Error = err.Error()
+		return
+	}
+
+	if resp.Error != "" {
+		s.logger.Error("got error from db", zap.Any("error", resp.Error))
+		return resp, errors.New(resp.Error)
+	}
+
+	return
 }
