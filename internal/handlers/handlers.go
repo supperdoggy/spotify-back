@@ -34,6 +34,7 @@ func (h *Handlers) InitHandlers() {
 	http.HandleFunc("/add_song_to_playlist", h.AddSongPlaylist)
 	http.HandleFunc("/remove_song_from_playlist", h.RemoveSongFromPlaylist)
 	http.HandleFunc("/new_playlist", h.NewPlaylist)
+	http.HandleFunc("/delete_playlist", h.DeletePlaylist)
 }
 
 // addHeaders will act as middleware to give us CORS support
@@ -150,6 +151,26 @@ func (h *Handlers) NewPlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err = h.s.NewPlaylist(req)
+	if err != nil {
+		h.logger.Error("gor Register() error", zap.Error(err))
+		utils.SendJson(w, resp, http.StatusBadRequest)
+		return
+	}
+	utils.SendJson(w, resp, http.StatusOK)
+}
+
+func (h *Handlers) DeletePlaylist(w http.ResponseWriter, r *http.Request) {
+	var req structsDB.DeleteUserPlaylistReq
+	var resp structsDB.DeleteUserPlaylistResp
+	err := utils.ParseJson(r, &req)
+	if err != nil {
+		h.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		utils.SendJson(w, resp, http.StatusBadRequest)
+		return
+	}
+
+	resp, err = h.s.DeletePlaylist(req)
 	if err != nil {
 		h.logger.Error("gor Register() error", zap.Error(err))
 		utils.SendJson(w, resp, http.StatusBadRequest)

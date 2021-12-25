@@ -30,6 +30,7 @@ type IService interface {
 	GetUserPlaylists(req structsDB.GetUserAllPlaylistsReq) (resp structsDB.GetUserAllPlaylistsResp, err error)
 	GetPlaylist(req structsDB.GetPlaylistReq) (resp structsDB.GetPlaylistResp, err error)
 	NewPlaylist(req structsDB.NewPlaylistReq) (resp structsDB.NewPlaylistResp, err error)
+	DeletePlaylist(req structsDB.DeleteUserPlaylistReq) (resp structsDB.DeleteUserPlaylistResp, err error)
 	AddSongToPlaylist(req structsDB.AddSongToUserPlaylistReq) (resp structsDB.AddSongToUserPlaylistResp, err error)
 }
 
@@ -174,7 +175,6 @@ func (s *Service) GetSegment(id string) ([]byte, error) {
 	return resp.Segment.Data, nil
 }
 
-
 func (s *Service) Register(req structs2.RegisterReq) (resp structs2.NewTokenResp, err error) {
 	if req.Password == "" || req.Email == "" {
 		resp.Error = "fill all the fields"
@@ -308,7 +308,7 @@ func (s *Service) GetUserPlaylists(req structsDB.GetUserAllPlaylistsReq) (resp s
 
 	data, err := json.Marshal(req)
 	if err != nil {
-		s.logger.Error("error marshalling requst",  zap.Error(err))
+		s.logger.Error("error marshalling requst", zap.Error(err))
 		resp.Error = err.Error()
 		return resp, err
 	}
@@ -350,7 +350,7 @@ func (s *Service) GetPlaylist(req structsDB.GetPlaylistReq) (resp structsDB.GetP
 
 	data, err := json.Marshal(req)
 	if err != nil {
-		s.logger.Error("error marshalling requst",  zap.Error(err))
+		s.logger.Error("error marshalling requst", zap.Error(err))
 		resp.Error = err.Error()
 		return resp, err
 	}
@@ -392,7 +392,7 @@ func (s *Service) NewPlaylist(req structsDB.NewPlaylistReq) (resp structsDB.NewP
 
 	data, err := json.Marshal(req)
 	if err != nil {
-		s.logger.Error("error marshalling requst",  zap.Error(err))
+		s.logger.Error("error marshalling requst", zap.Error(err))
 		resp.Error = err.Error()
 		return resp, err
 	}
@@ -426,6 +426,47 @@ func (s *Service) NewPlaylist(req structsDB.NewPlaylistReq) (resp structsDB.NewP
 	return
 }
 
+func (s *Service) DeletePlaylist(req structsDB.DeleteUserPlaylistReq) (resp structsDB.DeleteUserPlaylistResp, err error) {
+	if req.PlaylistID == "" || req.UserID == "" {
+		resp.Error = "you must fill all ids"
+		return resp, errors.New(resp.Error)
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		s.logger.Error("error marshalling requst", zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	response, err := http.Post("http://localhost:8082/api/v1/delete_playlist", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		s.logger.Error("error making post req to db", zap.Error(err))
+		resp.Error = err.Error()
+		return resp, err
+	}
+
+	data, err = ioutil.ReadAll(response.Body)
+	if err != nil {
+		s.logger.Error("error reading body", zap.Error(err))
+		resp.Error = err.Error()
+		return
+	}
+
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		s.logger.Error("error unmarshalling resp", zap.Error(err), zap.Any("data", string(data)))
+		resp.Error = err.Error()
+		return
+	}
+
+	if resp.Error != "" {
+		s.logger.Error("got error from db", zap.Any("error", resp.Error))
+		return resp, errors.New(resp.Error)
+	}
+
+	return
+}
 
 func (s *Service) AddSongToPlaylist(req structsDB.AddSongToUserPlaylistReq) (resp structsDB.AddSongToUserPlaylistResp, err error) {
 	if req.PlaylistID == "" || req.UserID == "" || req.SongID == "" {
@@ -435,7 +476,7 @@ func (s *Service) AddSongToPlaylist(req structsDB.AddSongToUserPlaylistReq) (res
 
 	data, err := json.Marshal(req)
 	if err != nil {
-		s.logger.Error("error marshalling requst",  zap.Error(err))
+		s.logger.Error("error marshalling requst", zap.Error(err))
 		resp.Error = err.Error()
 		return resp, err
 	}
@@ -477,7 +518,7 @@ func (s *Service) RemoveSongFromPlaylist(req structsDB.RemoveSongFromUserPlaylis
 
 	data, err := json.Marshal(req)
 	if err != nil {
-		s.logger.Error("error marshalling requst",  zap.Error(err))
+		s.logger.Error("error marshalling requst", zap.Error(err))
 		resp.Error = err.Error()
 		return resp, err
 	}
